@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String?
+  passwordHash String
+  telegramId   String?         @unique
+  
+  goals        Goal[]
+  workspaces   WorkspaceUser[]
+  ownedWorkspaces Workspace[]  @relation("WorkspaceOwner")
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  @@index([email])
+  @@index([telegramId])
+}
+
+model Workspace {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  
+  owner       User            @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceUser[]
+  goals       Goal[]
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  @@index([ownerId])
+}
+
+model WorkspaceUser {
+  id          String        @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(MEMBER)
+  
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime      @default(now())
+  
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model Goal {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      GoalStatus @default(DRAFT)
+  type        GoalType
+  
+  ownerId     String
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  parentId    String?
+  parent      Goal?      @relation("GoalHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Goal[]     @relation("GoalHierarchy")
+  
+  metrics     Metric[]
+  
+  startDate   DateTime
+  endDate     DateTime
+  progress    Int        @default(0)
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  @@index([ownerId, status])
+  @@index([workspaceId, status])
+  @@index([parentId])
+  @@index([endDate])
+}
+
+model Metric {
+  id           String   @id @default(cuid())
+  name         String
+  currentValue Float    @default(0)
+  targetValue  Float
+  unit         String
+  
+  goalId       String
+  goal         Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([goalId])
+}
+
+enum GoalStatus {
+  DRAFT
+  ACTIVE
+  REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum GoalType {
+  QUARTERLY
+  MONTHLY
+  WEEKLY
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}

@@ -1,0 +1,15 @@
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { GoalsPageClient } from '@/components/features/goals/GoalsPageClient';
+
+export default async function GoalsPage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    redirect('/login');
+  }
+
+  return <GoalsPageClient />;
+}
+
