@@ -14,19 +14,27 @@ const mockGoal = {
   progress: 0,
 };
 
-const mockGoalModel = {
-  findMany: vi.fn(),
-  findFirst: vi.fn(),
-  create: vi.fn(),
-  createMany: vi.fn(),
-  update: vi.fn(),
-  delete: vi.fn(),
-  count: vi.fn(),
-};
-
 vi.mock('@/lib/db', () => ({
   prisma: {
-    goal: mockGoalModel,
+    goal: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    workspace: {
+      findFirst: vi.fn(),
+    },
+  },
+}));
+
+vi.mock('@/lib/services/telegramService', () => ({
+  TelegramService: {
+    sendStatusChangeNotification: vi.fn(),
+    sendProgressUpdate: vi.fn(),
   },
 }));
 
@@ -36,11 +44,14 @@ describe('GoalService', () => {
   });
 
   it('listGoals возвращает список целей пользователя', async () => {
-    mockGoalModel.findMany.mockResolvedValue([mockGoal]);
+    const { prisma } = await import('@/lib/db');
+    vi.mocked(prisma.workspace.findFirst).mockResolvedValue({ id: 'workspace-1' } as any);
+    vi.mocked(prisma.goal.findMany).mockResolvedValue([mockGoal] as any);
 
     const result = await GoalService.listGoals('user-1', 'workspace-1');
 
-    expect(mockGoalModel.findMany).toHaveBeenCalledWith({
+    expect(prisma.workspace.findFirst).toHaveBeenCalled();
+    expect(prisma.goal.findMany).toHaveBeenCalledWith({
       where: { workspaceId: 'workspace-1', ownerId: 'user-1' },
       include: expect.any(Object),
       orderBy: { createdAt: 'desc' },
@@ -49,7 +60,9 @@ describe('GoalService', () => {
   });
 
   it('createGoal создаёт цель с ownerId', async () => {
-    mockGoalModel.create.mockResolvedValue(mockGoal);
+    const { prisma } = await import('@/lib/db');
+    vi.mocked(prisma.workspace.findFirst).mockResolvedValue({ id: 'workspace-1' } as any);
+    vi.mocked(prisma.goal.create).mockResolvedValue(mockGoal as any);
 
     const result = await GoalService.createGoal(
       {
@@ -59,16 +72,20 @@ describe('GoalService', () => {
         startDate: new Date(),
         endDate: new Date(Date.now() + 86400000),
         workspaceId: 'workspace-1',
+        status: undefined,
+        progress: undefined,
       },
       'user-1',
     );
 
-    expect(mockGoalModel.create).toHaveBeenCalled();
+    expect(prisma.workspace.findFirst).toHaveBeenCalled();
+    expect(prisma.goal.create).toHaveBeenCalled();
     expect(result).toEqual(mockGoal);
   });
 
   it('updateGoal бросает ошибку если цель не найдена', async () => {
-    mockGoalModel.findFirst.mockResolvedValue(null);
+    const { prisma } = await import('@/lib/db');
+    vi.mocked(prisma.goal.findFirst).mockResolvedValue(null);
 
     await expect(
       GoalService.updateGoal('goal-unknown', { title: 'Updated' }, 'user-1'),
@@ -76,12 +93,13 @@ describe('GoalService', () => {
   });
 
   it('deleteGoal удаляет цель', async () => {
-    mockGoalModel.findFirst.mockResolvedValue(mockGoal);
-    mockGoalModel.delete.mockResolvedValue(mockGoal);
+    const { prisma } = await import('@/lib/db');
+    vi.mocked(prisma.goal.findFirst).mockResolvedValue(mockGoal as any);
+    vi.mocked(prisma.goal.delete).mockResolvedValue(mockGoal as any);
 
     await GoalService.deleteGoal('goal-1', 'user-1');
 
-    expect(mockGoalModel.delete).toHaveBeenCalledWith({ where: { id: 'goal-1' } });
+    expect(prisma.goal.findFirst).toHaveBeenCalled();
+    expect(prisma.goal.delete).toHaveBeenCalledWith({ where: { id: 'goal-1' } });
   });
 });
-

@@ -20,6 +20,8 @@ export const config = {
     '/dashboard/:path*',
     '/goals/:path*',
     '/analytics/:path*',
+    '/reports/:path*',
     '/settings/:path*',
+    '/workspaces/:path*',
   ],
 };

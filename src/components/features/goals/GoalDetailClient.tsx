@@ -9,6 +9,7 @@ import { GoalStatus, GoalType } from '@prisma/client';
 import { Edit, Trash2, ArrowLeft, Calendar, Target, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { EditGoalDialog } from './EditGoalDialog';
+import { MetricsList } from './MetricsList';
 
 interface Goal {
   id: string;
@@ -219,6 +220,15 @@ export function GoalDetailClient({ goalId }: GoalDetailClientProps) {
               <p className="mt-1">Last updated: {new Date(goal.updatedAt).toLocaleString('ru-RU')}</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Метрики</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MetricsList goalId={goalId} />
         </CardContent>
       </Card>
 

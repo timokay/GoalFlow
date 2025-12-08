@@ -8,36 +8,66 @@ datasource db {
 }
 
 model User {
-  id           String          @id @default(cuid())
-  email        String          @unique
+  id           String  @id @default(cuid())
+  email        String  @unique
   name         String?
   passwordHash String
-  telegramId   String?         @unique
-  
-  goals        Goal[]
-  workspaces   WorkspaceUser[]
-  ownedWorkspaces Workspace[]  @relation("WorkspaceOwner")
-  
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  
+  telegramId   String? @unique
+
+  goals                   Goal[]
+  workspaces              WorkspaceUser[]
+  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
+  notificationPreferences NotificationPreferences?
+  goalTemplates           GoalTemplate[]
+  activities              Activity[]
+  sentInvites             WorkspaceInvite[]        @relation("WorkspaceInviter")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([email])
   @@index([telegramId])
 }
 
+model NotificationPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailEnabled    Boolean @default(true)
+  telegramEnabled Boolean @default(true)
+
+  statusChangeEmail    Boolean @default(true)
+  statusChangeTelegram Boolean @default(true)
+
+  progressUpdateEmail    Boolean @default(true)
+  progressUpdateTelegram Boolean @default(true)
+
+  deadlineReminderEmail    Boolean @default(true)
+  deadlineReminderTelegram Boolean @default(true)
+
+  deadlineReminderDays Int[] @default([7, 3, 1]) // Days before deadline to send reminder
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Workspace {
-  id          String          @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
   ownerId     String
-  
-  owner       User            @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     WorkspaceUser[]
-  goals       Goal[]
-  
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
+
+  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       WorkspaceUser[]
+  goals         Goal[]
+  goalTemplates GoalTemplate[]
+  activities    Activity[]
+  invites       WorkspaceInvite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([ownerId])
 }
 
@@ -46,12 +76,12 @@ model WorkspaceUser {
   userId      String
   workspaceId String
   role        WorkspaceRole @default(MEMBER)
-  
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime      @default(now())
-  
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@unique([userId, workspaceId])
   @@index([userId])
   @@index([workspaceId])
@@ -63,26 +93,27 @@ model Goal {
   description String?
   status      GoalStatus @default(DRAFT)
   type        GoalType
-  
-  ownerId     String
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   workspaceId String
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
-  parentId    String?
-  parent      Goal?      @relation("GoalHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Goal[]     @relation("GoalHierarchy")
-  
-  metrics     Metric[]
-  
-  startDate   DateTime
-  endDate     DateTime
-  progress    Int        @default(0)
-  
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Goal?   @relation("GoalHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Goal[]  @relation("GoalHierarchy")
+
+  metrics    Metric[]
+  activities Activity[]
+
+  startDate DateTime
+  endDate   DateTime
+  progress  Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([ownerId, status])
   @@index([workspaceId, status])
   @@index([parentId])
@@ -90,18 +121,18 @@ model Goal {
 }
 
 model Metric {
-  id           String   @id @default(cuid())
+  id           String @id @default(cuid())
   name         String
-  currentValue Float    @default(0)
+  currentValue Float  @default(0)
   targetValue  Float
   unit         String
-  
-  goalId       String
-  goal         Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([goalId])
 }
 
@@ -124,4 +155,73 @@ enum WorkspaceRole {
   ADMIN
   MEMBER
   VIEWER
+}
+
+model GoalTemplate {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  type               GoalType
+  title              String
+  defaultDescription String?
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  isPublic Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([workspaceId])
+}
+
+model Activity {
+  id          String @id @default(cuid())
+  type        String // 'GOAL_CREATED', 'GOAL_UPDATED', 'GOAL_COMPLETED', etc.
+  description String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  goalId String?
+  goal   Goal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  metadata Json? // Дополнительные данные в формате JSON
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([goalId])
+  @@index([createdAt])
+}
+
+model WorkspaceInvite {
+  id    String        @id @default(cuid())
+  email String
+  role  WorkspaceRole @default(MEMBER)
+  token String        @unique
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  invitedBy String
+  inviter   User   @relation("WorkspaceInviter", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  acceptedAt DateTime?
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([email, workspaceId])
+  @@index([token])
+  @@index([workspaceId])
 }

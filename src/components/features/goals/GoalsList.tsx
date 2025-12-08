@@ -22,6 +22,7 @@ interface Goal {
 
 interface GoalsListProps {
   workspaceId: string;
+  initialGoals?: any[];
 }
 
 const statusColors = {
@@ -38,12 +39,18 @@ const typeLabels = {
   WEEKLY: 'Weekly',
 };
 
-export function GoalsList({ workspaceId }: GoalsListProps) {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+export function GoalsList({ workspaceId, initialGoals }: GoalsListProps) {
+  const [goals, setGoals] = useState<Goal[]>(initialGoals || []);
+  const [loading, setLoading] = useState(!initialGoals);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialGoals) {
+      setGoals(initialGoals);
+      setLoading(false);
+      return;
+    }
+
     async function fetchGoals() {
       try {
         setLoading(true);
@@ -63,7 +70,7 @@ export function GoalsList({ workspaceId }: GoalsListProps) {
     if (workspaceId) {
       fetchGoals();
     }
-  }, [workspaceId]);
+  }, [workspaceId, initialGoals]);
 
   if (loading) {
     return (

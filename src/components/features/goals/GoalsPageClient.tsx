@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GoalsList } from '@/components/features/goals/GoalsList';
+import { GoalHierarchy } from '@/components/features/goals/GoalHierarchy';
+import { SearchGoals } from '@/components/features/goals/SearchGoals';
 import { WorkspaceSelector } from '@/components/features/dashboard/WorkspaceSelector';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, List, TreePine, Search } from 'lucide-react';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function GoalsPageClient() {
   const [workspaceId, setWorkspaceId] = useState<string>('');
@@ -36,29 +39,53 @@ export function GoalsPageClient() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Your Goals</CardTitle>
-                <CardDescription>View and manage all your goals</CardDescription>
+                <CardTitle>Ваши цели</CardTitle>
+                <CardDescription>Просмотр и управление всеми вашими целями</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
+                    <SelectValue placeholder="Фильтр по статусу" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="REVIEW">Review</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="all">Все статусы</SelectItem>
+                    <SelectItem value="DRAFT">Черновик</SelectItem>
+                    <SelectItem value="ACTIVE">Активна</SelectItem>
+                    <SelectItem value="REVIEW">На проверке</SelectItem>
+                    <SelectItem value="COMPLETED">Завершена</SelectItem>
+                    <SelectItem value="CANCELLED">Отменена</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <GoalsList workspaceId={workspaceId} />
+            <Tabs defaultValue="list" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="list">
+                  <List className="mr-2 h-4 w-4" />
+                  Список
+                </TabsTrigger>
+                <TabsTrigger value="hierarchy">
+                  <TreePine className="mr-2 h-4 w-4" />
+                  Иерархия
+                </TabsTrigger>
+                <TabsTrigger value="search">
+                  <Search className="mr-2 h-4 w-4" />
+                  Поиск
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="list" className="mt-4">
+                <GoalsList workspaceId={workspaceId} />
+              </TabsContent>
+              <TabsContent value="hierarchy" className="mt-4">
+                <GoalHierarchy workspaceId={workspaceId} />
+              </TabsContent>
+              <TabsContent value="search" className="mt-4">
+                <SearchGoals workspaceId={workspaceId} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
