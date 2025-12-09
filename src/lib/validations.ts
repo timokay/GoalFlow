@@ -20,7 +20,12 @@ const baseGoalSchema = {
   type: z.enum(['QUARTERLY', 'MONTHLY', 'WEEKLY']),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  parentId: z.string().cuid().optional(),
+  parentId: z
+    .string()
+    .cuid()
+    .optional()
+    .or(z.literal(''))
+    .transform((val) => (val === '' ? undefined : val)),
   workspaceId: z.string().cuid(),
   progress: z.number().int().min(0).max(100).optional(),
 };

@@ -18,6 +18,8 @@ export function CreateGoalForm() {
   const [workspaceId, setWorkspaceId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [parentGoals, setParentGoals] = useState<Array<{ id: string; title: string; type: string }>>([]);
+  const [loadingParentGoals, setLoadingParentGoals] = useState(false);
 
   const {
     register,
@@ -29,16 +31,40 @@ export function CreateGoalForm() {
     resolver: zodResolver(createGoalSchema),
     defaultValues: {
       type: 'QUARTERLY',
+      parentId: '',
     },
   });
 
   const type = watch('type');
+  const parentId = watch('parentId') || '';
 
   useEffect(() => {
     if (workspaceId) {
       setValue('workspaceId', workspaceId);
+      // Загружаем список целей для выбора родителя
+      fetchParentGoals(workspaceId);
     }
   }, [workspaceId, setValue]);
+
+  const fetchParentGoals = async (wsId: string) => {
+    if (!wsId) return;
+    setLoadingParentGoals(true);
+    try {
+      const response = await fetch(`/api/goals?workspaceId=${wsId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Фильтруем только QUARTERLY и MONTHLY цели (WEEKLY не могут быть родителями)
+        const availableParents = (data.data || []).filter(
+          (goal: any) => goal.type === 'QUARTERLY' || goal.type === 'MONTHLY',
+        );
+        setParentGoals(availableParents);
+      }
+    } catch (err) {
+      console.error('Failed to fetch parent goals:', err);
+    } finally {
+      setLoadingParentGoals(false);
+    }
+  };
 
   const onSubmit = async (data: any) => {
     if (!workspaceId) {
@@ -51,9 +77,11 @@ export function CreateGoalForm() {
 
     try {
       // Преобразуем строки дат в ISO формат для API
+      // Преобразуем пустую строку parentId в undefined
       const payload: CreateGoalInput = {
         ...data,
         workspaceId,
+        parentId: data.parentId && data.parentId.trim() !== '' ? data.parentId : undefined,
         startDate: new Date(data.startDate).toISOString(),
         endDate: new Date(data.endDate).toISOString(),
       };
@@ -146,14 +174,30 @@ export function CreateGoalForm() {
             {type !== 'WEEKLY' && (
               <div className="space-y-2">
                 <Label htmlFor="parentId">Parent Goal (Optional)</Label>
-                <Input
-                  id="parentId"
-                  {...register('parentId')}
-                  placeholder="Parent goal ID"
-                  className={errors.parentId ? 'border-destructive' : ''}
-                />
+                <Select
+                  value={parentId || 'none'}
+                  onValueChange={(value) => setValue('parentId', value === 'none' ? '' : value)}
+                  disabled={loadingParentGoals}
+                >
+                  <SelectTrigger id="parentId" className={errors.parentId ? 'border-destructive' : ''}>
+                    <SelectValue placeholder={loadingParentGoals ? 'Loading...' : 'Select parent goal (optional)'} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="none">None (Top-level goal)</SelectItem>
+                    {parentGoals.map((goal) => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.title} ({goal.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.parentId && (
                   <p className="text-sm text-destructive">{errors.parentId.message}</p>
+                )}
+                {!loadingParentGoals && parentGoals.length === 0 && workspaceId && (
+                  <p className="text-xs text-muted-foreground">
+                    No QUARTERLY or MONTHLY goals available to use as parent. You can create a top-level goal.
+                  </p>
                 )}
               </div>
             )}

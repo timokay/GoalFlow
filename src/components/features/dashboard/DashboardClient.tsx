@@ -54,7 +54,9 @@ export function DashboardClient({ userName }: DashboardClientProps) {
       {!workspaceId && (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Please select a workspace to view your dashboard</p>
+            <p className="text-sm text-muted-foreground">
+              Please select a workspace to view your dashboard or create a new workspace to organize your goals.
+            </p>
           </CardContent>
         </Card>
       )}
