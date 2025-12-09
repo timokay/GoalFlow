@@ -175,15 +175,24 @@ RESEND_FROM_EMAIL="noreply@yourdomain.com"
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Архитектурный план проекта
 - [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) - Отчет по безопасности
 - [SECURITY.md](./SECURITY.md) - Рекомендации по безопасности
+- [TESTING_PLAN.md](./TESTING_PLAN.md) - План тестирования проекта
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - Руководство для контрибьюторов
 - [memory-bank/](./memory-bank/) - Документация разработки
 
 ## 🤝 Вклад в проект
 
+Мы приветствуем вклад в проект! Пожалуйста, ознакомьтесь с [CONTRIBUTING.md](./CONTRIBUTING.md) для получения подробных инструкций.
+
+**Быстрый старт:**
 1. Fork проекта
 2. Создайте feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit изменения (`git commit -m 'Add some AmazingFeature'`)
 4. Push в branch (`git push origin feature/AmazingFeature`)
 5. Откройте Pull Request
+
+**Нужна помощь?**
+- Откройте [Issue](https://github.com/timokay/GoalFlow/issues) для багов или предложений
+- Изучите [Issues с меткой "good first issue"](https://github.com/timokay/GoalFlow/labels/good%20first%20issue) для начала работы
 
 ## 📄 Лицензия
 
