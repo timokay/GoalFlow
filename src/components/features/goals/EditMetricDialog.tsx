@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +32,18 @@ interface EditMetricDialogProps {
   onSaved: () => void;
 }
 
-type CreateMetricForm = z.infer<typeof createMetricSchema>;
+// Клиентская схема без goalId (он добавляется на сервере)
+const createMetricFormSchema = z.object({
+  name: z.string().min(1, 'Название обязательно').max(100, 'Название слишком длинное'),
+  currentValue: z.number().min(0).optional(),
+  targetValue: z.number().min(0, 'Целевое значение должно быть положительным'),
+  unit: z
+    .string()
+    .min(1, 'Единица измерения обязательна')
+    .max(20, 'Единица измерения слишком длинная'),
+});
+
+type CreateMetricForm = z.infer<typeof createMetricFormSchema>;
 type UpdateMetricForm = z.infer<typeof updateMetricSchema>;
 
 export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetricDialogProps) {
@@ -40,7 +57,7 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
     formState: { errors },
     reset,
   } = useForm<CreateMetricForm | UpdateMetricForm>({
-    resolver: zodResolver(isEditing ? updateMetricSchema : createMetricSchema),
+    resolver: zodResolver(isEditing ? updateMetricSchema : createMetricFormSchema),
     defaultValues: metric
       ? {
           name: metric.name,
@@ -68,6 +85,7 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
   }, [metric, reset]);
 
   async function onSubmit(data: CreateMetricForm | UpdateMetricForm) {
+    console.log('[EditMetricDialog] onSubmit called', { data, isEditing, goalId });
     setIsSubmitting(true);
     setError(null);
 
@@ -75,26 +93,46 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
       const url = isEditing ? `/api/metrics/${metric.id}` : `/api/goals/${goalId}/metrics`;
       const method = isEditing ? 'PATCH' : 'POST';
 
+      // Добавляем goalId для создания метрики
+      const payload = isEditing ? data : { ...data, goalId };
+      console.log('[EditMetricDialog] Sending payload', { url, method, payload });
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
+      console.log('[EditMetricDialog] Response status', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to save metric');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[EditMetricDialog] Error response', errorData);
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to save metric');
       }
 
+      const result = await response.json();
+      console.log('[EditMetricDialog] Success', result);
       onSaved();
     } catch (err) {
+      console.error('[EditMetricDialog] Error', err);
       setError(err instanceof Error ? err.message : 'Failed to save metric');
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const handleFormSubmit = handleSubmit(onSubmit, (errors) => {
+    console.log('[EditMetricDialog] Validation errors', errors);
+  });
+
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    console.log('[EditMetricDialog] Button clicked', { errors });
+    handleFormSubmit(e as any);
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -108,7 +146,7 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="name">Название *</Label>
             <Input
@@ -116,9 +154,7 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
               {...register('name')}
               placeholder="Например: Количество пользователей"
             />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -128,7 +164,10 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
                 id="currentValue"
                 type="number"
                 step="0.1"
-                {...register('currentValue', { valueAsNumber: true })}
+                {...register('currentValue', {
+                  valueAsNumber: true,
+                  setValueAs: (v) => (v === '' || isNaN(Number(v)) ? 0 : Number(v)),
+                })}
                 placeholder="0"
               />
               {errors.currentValue && (
@@ -142,7 +181,10 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
                 id="targetValue"
                 type="number"
                 step="0.1"
-                {...register('targetValue', { valueAsNumber: true })}
+                {...register('targetValue', {
+                  valueAsNumber: true,
+                  setValueAs: (v) => (v === '' || isNaN(Number(v)) ? 0 : Number(v)),
+                })}
                 placeholder="100"
               />
               {errors.targetValue && (
@@ -153,23 +195,30 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
 
           <div className="space-y-2">
             <Label htmlFor="unit">Единица измерения *</Label>
-            <Input
-              id="unit"
-              {...register('unit')}
-              placeholder="Например: шт, %, руб"
-            />
-            {errors.unit && (
-              <p className="text-sm text-destructive">{errors.unit.message}</p>
-            )}
+            <Input id="unit" {...register('unit')} placeholder="Например: шт, %, руб" />
+            {errors.unit && <p className="text-sm text-destructive">{errors.unit.message}</p>}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
+
+          {/* Отладочная информация */}
+          {Object.keys(errors).length > 0 && (
+            <div className="text-xs text-destructive">
+              Ошибки валидации: {JSON.stringify(errors, null, 2)}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Отмена
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              onClick={(e) => {
+                console.log('[EditMetricDialog] Submit button clicked');
+              }}
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? 'Сохранить' : 'Создать'}
             </Button>
@@ -179,4 +228,3 @@ export function EditMetricDialog({ goalId, metric, onClose, onSaved }: EditMetri
     </Dialog>
   );
 }
-

@@ -46,11 +46,65 @@ export class MetricService {
     return metric;
   }
 
+  /**
+   * Рассчитывает прогресс цели на основе метрик
+   * Прогресс = средний процент выполнения всех метрик
+   */
+  static async calculateGoalProgress(goalId: string): Promise<number> {
+    const metrics = await prisma.metric.findMany({
+      where: { goalId },
+      select: {
+        currentValue: true,
+        targetValue: true,
+      },
+    });
+
+    if (metrics.length === 0) {
+      return 0;
+    }
+
+    // Рассчитываем процент для каждой метрики
+    const percentages = metrics.map((metric) => {
+      if (metric.targetValue === 0) return 0;
+      const percentage = (metric.currentValue / metric.targetValue) * 100;
+      // Ограничиваем максимум 100%
+      return Math.min(percentage, 100);
+    });
+
+    // Возвращаем средний процент
+    const averageProgress = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+    return Math.round(averageProgress);
+  }
+
+  /**
+   * Обновляет прогресс цели на основе метрик
+   */
+  static async updateGoalProgressFromMetrics(goalId: string): Promise<void> {
+    const progress = await this.calculateGoalProgress(goalId);
+
+    await prisma.goal.update({
+      where: { id: goalId },
+      data: { progress },
+    });
+
+    // Обновляем прогресс родительских целей, если есть
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
+      select: { parentId: true },
+    });
+
+    if (goal?.parentId) {
+      // Импортируем GoalService для обновления родителя
+      const { GoalService } = await import('./goalService');
+      await GoalService.updateParentProgress(goal.parentId).catch(console.error);
+    }
+  }
+
   static async createMetric(data: CreateMetricInput, userId: string) {
     // Проверяем доступ к цели
     await ensureGoalAccess(data.goalId, userId);
 
-    return prisma.metric.create({
+    const metric = await prisma.metric.create({
       data: {
         name: data.name,
         currentValue: data.currentValue ?? 0,
@@ -60,6 +114,11 @@ export class MetricService {
       },
       include: defaultMetricInclude,
     });
+
+    // Пересчитываем прогресс цели
+    await this.updateGoalProgressFromMetrics(data.goalId).catch(console.error);
+
+    return metric;
   }
 
   static async updateMetric(id: string, data: UpdateMetricInput, userId: string) {
@@ -74,7 +133,7 @@ export class MetricService {
     // Проверяем доступ к цели
     await ensureGoalAccess(metric.goalId, userId);
 
-    return prisma.metric.update({
+    const updatedMetric = await prisma.metric.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
@@ -84,6 +143,11 @@ export class MetricService {
       },
       include: defaultMetricInclude,
     });
+
+    // Пересчитываем прогресс цели
+    await this.updateGoalProgressFromMetrics(metric.goalId).catch(console.error);
+
+    return updatedMetric;
   }
 
   static async deleteMetric(id: string, userId: string) {
@@ -95,12 +159,15 @@ export class MetricService {
       throw new Error('Metric not found');
     }
 
+    const goalId = metric.goalId;
     // Проверяем доступ к цели
-    await ensureGoalAccess(metric.goalId, userId);
+    await ensureGoalAccess(goalId, userId);
 
-    return prisma.metric.delete({
+    await prisma.metric.delete({
       where: { id },
     });
+
+    // Пересчитываем прогресс цели после удаления метрики
+    await this.updateGoalProgressFromMetrics(goalId).catch(console.error);
   }
 }
-

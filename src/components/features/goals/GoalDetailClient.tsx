@@ -146,13 +146,13 @@ export function GoalDetailClient({ goalId }: GoalDetailClientProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Link href="/goals">
-          <Button variant="ghost">
+          <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Goals
           </Button>
         </Link>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
+          <Button variant="default" onClick={() => setIsEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -172,7 +172,9 @@ export function GoalDetailClient({ goalId }: GoalDetailClientProps) {
                 <CardDescription className="mt-2">{goal.description}</CardDescription>
               )}
             </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[goal.status]}`}>
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[goal.status]}`}
+            >
               {goal.status}
             </span>
           </div>
@@ -217,7 +219,9 @@ export function GoalDetailClient({ goalId }: GoalDetailClientProps) {
           <div className="pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               <p>Created: {new Date(goal.createdAt).toLocaleString('ru-RU')}</p>
-              <p className="mt-1">Last updated: {new Date(goal.updatedAt).toLocaleString('ru-RU')}</p>
+              <p className="mt-1">
+                Last updated: {new Date(goal.updatedAt).toLocaleString('ru-RU')}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -243,4 +247,3 @@ export function GoalDetailClient({ goalId }: GoalDetailClientProps) {
     </div>
   );
 }
-

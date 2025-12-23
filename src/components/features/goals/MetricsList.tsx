@@ -140,18 +140,18 @@ export function MetricsList({ goalId, onMetricCreated }: MetricsListProps) {
                       </div>
                       <div className="flex gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
                           onClick={() => setEditingMetric(metric)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="icon"
                           onClick={() => handleDelete(metric.id)}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -210,4 +210,3 @@ export function MetricsList({ goalId, onMetricCreated }: MetricsListProps) {
     </>
   );
 }
-
